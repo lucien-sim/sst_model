@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import pandas as pd
 
 from scipy.fftpack import rfft, irfft
 from scipy import sparse
@@ -249,4 +250,83 @@ class TrendRemover:
             xr.DataArray: DataArray with trend restored. 
         """
         return X + self.get_trend(X)              
+
+
+class DataArray2DataFrame:
+    
+    def __init__(self, time_dim: str = 'time'): 
+        """Class for converting n-dimensional DataArrays to 
+        DataFrames and back again. 
+
+        Args:
+            time_dim (str, optional): name of time dimension. Defaults to 'time'.
+        """
+        self.time_dim = time_dim
+
+        self.dims = None
+        self.coords = None
+        self.cols = None
+        
+    def fit(self, X: xr.DataArray):
+        """Saves information needed to make conversion reproducible 
+        and invertible. 
+
+        Args:
+            X (xr.DataArray): DataArray to be converted. 
+
+        Returns:
+            self:
+        """
+        self.coords = X.coords
+        self.dims = X.dims
+        return self
+    
+    def transform(self, X: xr.DataArray) -> pd.DataFrame: 
+        """Convert to DataFrame. All non-time dimensions will form MultiIndex columns, 
+        the time dimension will form the index. 
+
+        Args:
+            X (xr.DataArray): DataArray to be converted. 
+
+        Returns:
+            pd.DataFrame: DataFrame version of DataArray. 
+        """
+        dims_no_time = [d for d in self.dims if d != self.time_dim]
+        if len(dims_no_time) >= 2: 
+            tmp = X.stack(dimensions={'columns': dims_no_time})
+        else: 
+            tmp = X.copy()
+        return tmp.to_pandas()
+    
+    def inverse_transform(self, X: pd.DataFrame) -> xr.DataArray: 
+        """Convert to DataArray. Columns will form the non-time dimension(s), 
+        index will form the time dimension. 
+
+        Args:
+            X (pd.DataFrame): DataFrame to be converted. 
+
+        Returns:
+            xr.DataArray: DataArray version of the DataFrame. 
+        """
+
+        # Initialize DataArray using DF. Columns may be multi-index. 
+        da = xr.DataArray(
+            data=X.values, 
+            dims=[X.index.name, 'columns'], 
+            coords={
+                X.index.name: ([X.index.name], X.index), 
+                'columns': (['columns'], X.columns), 
+            }, 
+        )
+        
+        # Unstack to get rid of multi-index.
+        if isinstance(X.columns, pd.MultiIndex):  
+            da = da.unstack(dim='columns')
+
+        # Reindex so has same size as original along non-time dimensions. 
+        da = da.reindex(indexers={d: self.coords[d] for d in self.dims if d != self.time_dim})
+
+        return da
+
+
 
