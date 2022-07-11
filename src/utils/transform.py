@@ -21,8 +21,8 @@ class FFTSmoother:
         self.fft_keep_frac = fft_keep_frac
 
         self.sparse_coefs = None
-        self.orig_shape = None
-        self.new_shape = None
+        self.shape_coef = None
+        self.shape_coef_2d = None
         
     def fit(self, x: np.ndarray): 
         """Find top FFT coefficients for generating smoothed array. 
@@ -47,8 +47,8 @@ class FFTSmoother:
 
         # Cache sparse version (scipy can only handle 2d so we need to reshape)
         f_2d = f.reshape(f.shape[0], -1)
-        self.orig_shape = f.shape
-        self.new_shape = f_2d.shape
+        self.shape_coef = f.shape
+        self.shape_coef_2d = f_2d.shape
         self.sparse_coefs = sparse.coo_matrix(f_2d)
 
         return self
@@ -59,7 +59,7 @@ class FFTSmoother:
         Returns:
             np.ndarray: array of smoothed values.
         """
-        return irfft(self.sparse_coefs.toarray().reshape(self.orig_shape), axis=self.axis)
+        return irfft(self.sparse_coefs.toarray().reshape(self.shape_coef), axis=self.axis)
 
 
 class SeasonalityRemoverFFT: 
