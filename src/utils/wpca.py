@@ -79,10 +79,10 @@ class WPCA(TransformerMixin, BaseEstimator):
         covar[np.isnan(covar)] = 0.  # Fill entries where w.T @ w is 0.
 
         # Calculate eigenvalues and eigenvectors, cumulative explained variance. 
-        eigval_idx = (X.shape[1] - n_components, X.shape[1] - 1)
-        eigval, eigvec = eigh(covar, eigvals=eigval_idx)
+        index_subset = (X.shape[1] - n_components, X.shape[1] - 1)
+        eigval, eigvec = eigh(covar, subset_by_index=index_subset)
         self.explained_variance_ = eigval[::-1][:n_components]
-        self.components_ = eigvec[:, :n_components][:, ::-1].T
+        self.components_ = eigvec[:, -n_components:][:, ::-1].T
 
         return self
 
